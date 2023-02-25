@@ -1,4 +1,5 @@
 # from django.shortcuts import render
+from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -50,7 +51,13 @@ class ProductViewSet(viewsets.ViewSet):
 
     def retrieve(self, request, slug=None):
         queryset = self.queryset.filter(slug=slug)
-        serializer = ProductSerializer(queryset, many=True)
+        # select_related is just a tool to reduce the number of db queries
+        serializer = ProductSerializer(
+            queryset.select_related("category", "brand").prefetch_related(
+                Prefetch("product_line__product_image")
+            ),
+            many=True,
+        )
         return Response(serializer.data)
 
     @extend_schema(responses=(ProductSerializer))

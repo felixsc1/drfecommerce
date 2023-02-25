@@ -35,20 +35,26 @@ class TestProductModel:
 
 
 class TestProductLineModel:
-    def test_str_methode(self, product_line_factory):
+    def test_str_method(self, product_line_factory):
         data = product_line_factory(sku="test_product_line_123")
         assert data.__str__() == "test_product_line_123"
 
     def test_duplicate_order_values(self, product_line_factory, product_factory):
-        # we also specify product_factory, 
+        # we also specify product_factory,
         # since we want to create two product lines for the same product.
         product = product_factory()
         product_line_factory(order=1, product=product)
         with pytest.raises(ValidationError):
             # create identical order number and pass it through our clean method
-            # note that by default clean() 
+            # note that by default clean()
             # is only executed when entering data through the form,
             # NOT when entering through the terminal as here
-            # see lesson68 (min 12:30) for how to override model save 
+            # see lesson68 (min 12:30) for how to override model save
             # function to enforce it.
             product_line_factory(order=1, product=product).clean()
+
+
+class TestProductImageModel:
+    def test_str_method(self, product_image_factory):
+        obj = product_image_factory(order=1)
+        assert obj.__str__() == "1"

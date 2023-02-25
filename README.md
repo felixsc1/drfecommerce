@@ -32,4 +32,11 @@ About [ViewSets](https://www.django-rest-framework.org/api-guide/viewsets/#views
 
 - Creating custom managers / querysets, that can e.g. filter out data based on some field (lesson 65).
 
-- Creating custom fields: 
+- Creating custom fields: In field.py created order field that automatically increments an integer for ever newly added product line.
+
+- Modify admin interface: Created inline to directly add product lines under a given products. Product Images are also an inline under product lines, which can be edited via a custom edit link button.
+
+- Optimizing performance by reducing SQL queries: 
+  - If a model contains foreign-keys and we filter this model, django performs an additional query to get data from each foreign-key table. Solution: `serializer = ProductSerializer(queryset.select_related("category", "brand"), many=True)` `select_related` behind the scenes creates a Join of all those tables, then filters (here, 1 query instead of 3)
+  - Select_related does not work for reverse foreign keys (e.g. filtering a product, which contains many lines / images, the foreignkey field is in the image model, not in the product line model). Solution: [prefetch_selected](https://docs.djangoproject.com/en/4.1/ref/models/querysets/) `prefetch_related(Prefetch("product_line__product_image")`
+  - Lesson 64 explains the packages needed to analyze the actual SQL queries that run behind the scenes.
