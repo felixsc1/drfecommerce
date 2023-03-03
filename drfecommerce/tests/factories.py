@@ -1,11 +1,14 @@
 import factory
 
 from drfecommerce.product.models import (
+    Attribute,
+    AttributeValue,
     Brand,
     Category,
     Product,
     ProductImage,
     ProductLine,
+    ProductType,
 )
 
 
@@ -27,6 +30,31 @@ class BrandFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: f"test_brand_{n}")
 
 
+class AttributeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Attribute
+
+    name = factory.Sequence(lambda n: f"test_attribute_{n}")
+    description = factory.Sequence(lambda n: f"test_attribute_description_{n}")
+
+
+class ProductTypeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ProductType
+
+    name = "test_type"
+
+    # see https://factoryboy.readthedocs.io/en/stable/reference.html?highlight=post_generation#factory.post_generation
+    # for example use see: https://factoryboy.readthedocs.io/en/stable/recipes.html#simple-many-to-many-relationship
+    # "attribute" is the many-to-many field inside ProductType.
+    # if not empty, this function will add attributes (populate the link table).
+    @factory.post_generation
+    def attribute(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        self.attribute.add(*extracted)
+
+
 class ProductFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Product
@@ -38,6 +66,15 @@ class ProductFactory(factory.django.DjangoModelFactory):
     brand = factory.SubFactory(BrandFactory)
     category = factory.SubFactory(CategoryFactory)
     is_active = True
+    product_type = factory.SubFactory(ProductTypeFactory)
+
+
+class AttributeValueFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = AttributeValue
+
+    attribute_value = factory.Sequence(lambda n: f"test_attribute_value_{n}")
+    attribute = factory.SubFactory(AttributeFactory)
 
 
 class ProductLineFactory(factory.django.DjangoModelFactory):
@@ -49,6 +86,14 @@ class ProductLineFactory(factory.django.DjangoModelFactory):
     stock_qty = 10
     product = factory.SubFactory(ProductFactory)
     is_active = True
+
+    # same as in AttributeType: many-to-many relationship
+    # see test_models.py / TestProductLineModel for example how to call this.
+    @factory.post_generation
+    def attribute_value(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        self.attribute_value.add(*extracted)
 
 
 class ProductImageFactory(factory.django.DjangoModelFactory):

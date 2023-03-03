@@ -55,6 +55,10 @@ class Product(models.Model):
         "Category", null=True, blank=True, on_delete=models.SET_NULL
     )
     is_active = models.BooleanField(default=False)
+    # note: if related_name is same as model name, can be omitted, thats the default.
+    product_type = models.ForeignKey(
+        "ProductType", on_delete=models.PROTECT, related_name="product"
+    )
 
     # the manager runs when calling Product.objects.all() or Product.objects.isactive()
     # default manager would be models.Manager()
@@ -63,6 +67,24 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Attribute(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class AttributeValue(models.Model):
+    attribute_value = models.CharField(max_length=100)
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.CASCADE, related_name="attribute_value"
+    )
+
+    def __str__(self):
+        return f"{self.attribute}-{self.attribute_value}"
 
 
 class ProductLine(models.Model):
@@ -74,7 +96,13 @@ class ProductLine(models.Model):
     )
     is_active = models.BooleanField(default=False)
     order = OrderField(unique_for_field="product", blank=True)
+    attribute_value = models.ManyToManyField(
+        AttributeValue,
+        through="ProductLineAttributeValue",
+        related_name="product_line_attribute_value",
+    )
 
+    # determines what is returned when model.objects.all() is called:
     objects = ActiveQueryset.as_manager()
 
     # See https://docs.djangoproject.com/en/4.1/ref/models/instances/
@@ -99,6 +127,50 @@ class ProductLine(models.Model):
         return str(self.sku)
 
 
+class ProductLineAttributeValue(models.Model):
+    # A table that links a ProductLine to Attributes
+    attribute_value = models.ForeignKey(
+        AttributeValue,
+        on_delete=models.CASCADE,
+        related_name="product_attribute_value_av",
+    )
+    product_line = models.ForeignKey(
+        ProductLine, on_delete=models.CASCADE, related_name="product_attribute_value_pl"
+    )
+
+    class Meta:
+        unique_together = ("product_line", "attribute_value")
+
+    def clean(self):
+        # Here, we want to check if duplicate attributes exist
+        # qs returns true (false) if filter finds that new attribute_value
+        # already exists for given product file
+        qs = (
+            ProductLineAttributeValue.objects.filter(
+                attribute_value=self.attribute_value
+            )
+            .filter(product_line=self.product_line)
+            .exists()
+        )
+
+        if not qs:
+            # Here we traverse through two tables using the related_names
+            # to get all attributes associated to a given product_line
+            iqs = Attribute.objects.filter(
+                attribute_value__product_line_attribute_value=self.product_line
+            ).values_list("pk", flat=True)
+
+            if self.attribute_value.attribute.id in list(iqs):
+                raise ValidationError(
+                    {"attribute_value": "This attribute already exists."}
+                )
+
+    def save(self, *args, **kwargs):
+        # again, just make sure clean gets initiated even when using command line.
+        self.full_clean()
+        return super(ProductLineAttributeValue, self).save(*args, **kwargs)
+
+
 class ProductImage(models.Model):
     alternative_text = models.CharField(max_length=100)
     url = models.ImageField(upload_to=None, default="test.jpg")
@@ -121,3 +193,30 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return str(self.order)
+
+
+class ProductType(models.Model):
+    name = models.CharField(max_length=100)
+    attribute = models.ManyToManyField(
+        Attribute,
+        through="ProductTypeAttribute",
+        related_name="product_type_attribute",
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class ProductTypeAttribute(models.Model):
+    # Link table between ProductType and Attribute
+    product_type = models.ForeignKey(
+        ProductType, on_delete=models.CASCADE, related_name="product_type_attribute_pt"
+    )
+    attribute = models.ForeignKey(
+        Attribute, on_delete=models.CASCADE, related_name="product_type_attribute_a"
+    )
+
+    class Meta:
+        unique_together = ("product_type", "attribute")
+        # unique together means, there should be no duplicates where product_type and attribute are both the same.
+        # though individually they can appear multiple times.

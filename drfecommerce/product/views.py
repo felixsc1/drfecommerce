@@ -53,9 +53,9 @@ class ProductViewSet(viewsets.ViewSet):
         queryset = self.queryset.filter(slug=slug)
         # select_related is just a tool to reduce the number of db queries
         serializer = ProductSerializer(
-            queryset.select_related("category", "brand").prefetch_related(
-                Prefetch("product_line__product_image")
-            ),
+            queryset.select_related("category", "brand")
+            .prefetch_related(Prefetch("product_line__product_image"))
+            .prefetch_related(Prefetch("product_line__attribute_value__attribute")),
             many=True,
         )
         return Response(serializer.data)
