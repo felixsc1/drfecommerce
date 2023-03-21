@@ -3,11 +3,11 @@ import factory
 from drfecommerce.product.models import (
     Attribute,
     AttributeValue,
-    Brand,
     Category,
     Product,
     ProductImage,
     ProductLine,
+    ProductLineAttributeValue,
     ProductType,
 )
 
@@ -20,14 +20,7 @@ class CategoryFactory(factory.django.DjangoModelFactory):
     # name = "test_category"
     # to have a unique name for each category:
     name = factory.Sequence(lambda n: f"test_category_{n}")
-    slug = factory.Sequence(lambda n: f"test_category_{n}")
-
-
-class BrandFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Brand
-
-    name = factory.Sequence(lambda n: f"test_brand_{n}")
+    slug = factory.Sequence(lambda n: f"test_slug_{n}")
 
 
 class AttributeFactory(factory.django.DjangoModelFactory):
@@ -42,12 +35,12 @@ class ProductTypeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ProductType
 
-    name = "test_type"
+    name = factory.Sequence(lambda n: f"test_type_name_{n}")
 
-    # see https://factoryboy.readthedocs.io/en/stable/reference.html?highlight=post_generation#factory.post_generation
-    # for example use see: https://factoryboy.readthedocs.io/en/stable/recipes.html#simple-many-to-many-relationship
-    # "attribute" is the many-to-many field inside ProductType.
-    # if not empty, this function will add attributes (populate the link table).
+    #     # see https://factoryboy.readthedocs.io/en/stable/reference.html?highlight=post_generation#factory.post_generation
+    #     # for example use see: https://factoryboy.readthedocs.io/en/stable/recipes.html#simple-many-to-many-relationship
+    #     # "attribute" is the many-to-many field inside ProductType.
+    #     # if not empty, this function will add attributes (populate the link table).
     @factory.post_generation
     def attribute(self, create, extracted, **kwargs):
         if not create or not extracted:
@@ -60,13 +53,18 @@ class ProductFactory(factory.django.DjangoModelFactory):
         model = Product
 
     name = factory.Sequence(lambda n: f"test_product_{n}")
-    slug = factory.Sequence(lambda n: f"test_product_{n}")
+    pid = factory.Sequence(lambda n: f"0000_{n}")
     description = "test_description"
     is_digital = True
-    brand = factory.SubFactory(BrandFactory)
     category = factory.SubFactory(CategoryFactory)
     is_active = True
     product_type = factory.SubFactory(ProductTypeFactory)
+
+    @factory.post_generation
+    def attribute_value(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        self.attribute_value.add(*extracted)
 
 
 class AttributeValueFactory(factory.django.DjangoModelFactory):
@@ -86,6 +84,8 @@ class ProductLineFactory(factory.django.DjangoModelFactory):
     stock_qty = 10
     product = factory.SubFactory(ProductFactory)
     is_active = True
+    weight = 100
+    product_type = factory.SubFactory(ProductTypeFactory)
 
     # same as in AttributeType: many-to-many relationship
     # see test_models.py / TestProductLineModel for example how to call this.
@@ -102,4 +102,12 @@ class ProductImageFactory(factory.django.DjangoModelFactory):
 
     alternative_text = "test_alternative_text"
     url = "test.jpg"
-    productline = factory.SubFactory(ProductLineFactory)
+    product_line = factory.SubFactory(ProductLineFactory)
+
+
+class ProductLineAttributeValueFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ProductLineAttributeValue
+
+    product_line = factory.SubFactory(ProductLineFactory)
+    attribute_value = factory.SubFactory(AttributeValueFactory)
